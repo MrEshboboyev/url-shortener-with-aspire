@@ -8,6 +8,9 @@ builder.AddNpgsqlDataSource("url-shortener");
 
 builder.AddRedisDistributedCache("redis");
 
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(metrics => metrics.AddMeter("UrlShortening.Api"));
+
 #pragma warning disable EXTEXP0018
 builder.Services.AddHybridCache();
 #pragma warning restore EXTEXP0018
@@ -16,6 +19,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddHostedService<DatabaseInitializer>();
 builder.Services.AddScoped<UrlShorteningService>();
+builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 

@@ -1,4 +1,6 @@
-﻿using Dapper;
+﻿using System.Diagnostics;
+using System.Diagnostics.Metrics;
+using Dapper;
 using Microsoft.Extensions.Caching.Hybrid;
 using Npgsql;
 using UrlShortening.Api.Models;
@@ -8,9 +10,19 @@ namespace UrlShortening.Api.Services;
 internal sealed class UrlShorteningService(
     NpgsqlDataSource dataSource,
     HybridCache hybridCache,
+    IHttpContextAccessor httpContextAccessor,
     ILogger<UrlShorteningService> logger)
 {
     private const int MaxRetries = 3;
+    
+    private static readonly Meter Meter = new("UrlShortening.Api");
+    private static readonly Counter<int> RedirectsCounter = Meter.CreateCounter<int>(
+        "url_shortener.redirects",
+        "The number of successful redirects");
+    private static readonly Counter<int> FailedRedirectsCounter = Meter.CreateCounter<int>(
+        "url_shortener.failed_redirects",
+        "The number of failed redirects");
+
     
     public async Task<string> ShortenUrl(string originalUrl)
     {
@@ -91,9 +103,56 @@ internal sealed class UrlShorteningService(
             return originalUrl;
         });
         
+        if (originalUrl is null)
+        {
+            FailedRedirectsCounter.Add(1,
+                new TagList 
+                {
+                    {
+                        "short_code", shortCode
+                    }
+                });
+        }
+        else
+        {
+            await RecordVisit(shortCode);
+            RedirectsCounter.Add(1,
+                new TagList
+                {
+                    {
+                        "short_code", shortCode
+                    }
+                });
+        }
+
+        
         return originalUrl;
     }
 
+    private async Task RecordVisit(string shortCode)
+    {
+        var context = httpContextAccessor.HttpContext;
+        var userAgent = context?.Request.Headers.UserAgent.ToString();
+        var referer = context?.Request.Headers.Referer.ToString();
+
+        const string sql = 
+            $"""
+            INSERT INTO url_visits (short_code, user_agent, referer)
+            VALUES (@ShortCode, @UserAgent, @Referer);
+            """;
+
+        await using var connection = await dataSource.OpenConnectionAsync();
+
+        await connection.ExecuteAsync(
+            sql,
+            new
+            {
+                ShortCode = shortCode,
+                UserAgent = userAgent,
+                Referer = referer
+            });
+    }
+    
     public async Task<IEnumerable<ShortenedUrl>> GetAllUrls()
     {
         const string sql = 
