@@ -1,0 +1,26 @@
+﻿# Ignore Rider-specific files and settings
+.idea/
+*.sln.DotSettings.user
+
+# Ignore build artifacts
+bin/
+obj/
+
+# Ignore temporary and cache files
+*.log
+*.tmp
+*.cache
+
+# Ignore Visual Studio settings
+.vs/
+*.user
+*.suo
+
+# Ignore NuGet packages
+*.nupkg
+packages/
+project.lock.json
+
+# Ignore environment secrets
+.env
+secrets.json
