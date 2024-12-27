@@ -2,6 +2,16 @@ using UrlShortening.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
+builder.AddNpgsqlDataSource("url-shortener");
+
+builder.AddRedisDistributedCache("redis");
+
+#pragma warning disable EXTEXP0018
+builder.Services.AddHybridCache();
+#pragma warning restore EXTEXP0018
+
 builder.Services.AddOpenApi();
 
 builder.Services.AddHostedService<DatabaseInitializer>();
