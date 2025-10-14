@@ -1,0 +1,44 @@
+services:
+  postgres_db:
+    image: postgres:15-alpine
+    restart: always
+    container_name: urlshorteningapi_postgres_db 
+    environment:
+      POSTGRES_DB: UrlShorteningApi_DB
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  urlshortening.api:
+    image: ${DOCKER_REGISTRY-}urlshorteningapi
+    container_name: urlshorteningapi
+    build:
+      context: .
+      dockerfile: src/UrlShortening.Api/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ConnectionStrings__url-shortener=Host=postgres_db;Port=5432;Database=UrlShorteningApi_DB;Username=postgres;Password=postgres
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
