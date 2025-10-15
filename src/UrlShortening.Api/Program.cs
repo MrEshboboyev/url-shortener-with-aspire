@@ -21,6 +21,19 @@ builder.Services.AddHostedService<DatabaseInitializer>();
 builder.Services.AddScoped<UrlShorteningService>();
 builder.Services.AddHttpContextAccessor();
 
+// 1. CORS siyosatini qo'shish
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        // Lokal rivojlanish muhitida hamma domenlardan murojaat qilishga ruxsat berish
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -61,5 +74,6 @@ app.MapGet("urls", async (UrlShorteningService urlShorteningService) =>
 });
 
 app.UseHttpsRedirection();
+app.UseCors();
 
 app.Run();
